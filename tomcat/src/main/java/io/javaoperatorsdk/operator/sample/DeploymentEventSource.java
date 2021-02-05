@@ -31,7 +31,7 @@ public class DeploymentEventSource extends AbstractEventSource implements Watche
         .apps()
         .deployments()
         .inAnyNamespace()
-        .withLabel("managed-by", "tomcat-operator")
+        .withLabel("app.kubernetes.io/managed-by", "tomcat-operator")
         .watch(this);
   }
 
