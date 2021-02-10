@@ -93,8 +93,8 @@ public class TomcatController implements ResourceController<Tomcat> {
       Deployment deployment = loadYaml(Deployment.class, "deployment.yaml");
       deployment.getMetadata().setName(tomcat.getMetadata().getName());
       deployment.getMetadata().setNamespace(ns);
-      deployment.getMetadata().getLabels().put("created-by", tomcat.getMetadata().getName());
-      deployment.getMetadata().getLabels().put("managed-by", "tomcat-operator");
+      deployment.getMetadata().getLabels().put("app.kubernetes.io/part-of", tomcat.getMetadata().getName());
+      deployment.getMetadata().getLabels().put("app.kubernetes.io/managed-by", "tomcat-operator");
       // set tomcat version
       deployment
           .getSpec()
