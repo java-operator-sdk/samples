@@ -6,8 +6,6 @@ public class WebServerStatus {
 
   private String areWeGood;
 
-  private String url;
-
   public String getHtmlConfigMap() {
     return htmlConfigMap;
   }
@@ -24,11 +22,4 @@ public class WebServerStatus {
     this.areWeGood = areWeGood;
   }
 
-  public String getUrl() {
-    return url;
-  }
-
-  public void setUrl(String url) {
-    this.url = url;
-  }
 }

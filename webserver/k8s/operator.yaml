@@ -26,7 +26,7 @@ spec:
       labels:
         app: webserver-operator
     spec:
-      serviceAccount: webserver-operator
+      serviceAccountName: webserver-operator
       containers:
       - name: operator
         image: webserver-operator
