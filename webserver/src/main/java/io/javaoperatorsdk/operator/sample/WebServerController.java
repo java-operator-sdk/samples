@@ -111,7 +111,7 @@ public class WebServerController implements ResourceController<WebServer> {
     status.setAreWeGood("Yes!");
     webServer.setStatus(status);
     //        throw new RuntimeException("Creating object failed, because it failed");
-    return UpdateControl.updateCustomResource(webServer);
+    return UpdateControl.updateStatusSubResource(webServer);
   }
 
   @Override
