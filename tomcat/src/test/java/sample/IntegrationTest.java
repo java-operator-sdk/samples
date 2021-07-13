@@ -7,10 +7,12 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
+import io.javaoperatorsdk.operator.sample.Tomcat;
 import io.javaoperatorsdk.operator.sample.TomcatController;
 import io.javaoperatorsdk.operator.sample.WebappController;
 import org.junit.Test;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -28,10 +30,12 @@ public class IntegrationTest {
 
         operator.register(new WebappController(client));
 
+        Tomcat tomcat = loadYaml(Tomcat.class, "tomcat-sample1.yaml");
+
     }
 
     private <T> T loadYaml(Class<T> clazz, String yaml) {
-        try (InputStream is = getClass().getResourceAsStream(yaml)) {
+        try (InputStream is = new FileInputStream("k8s/" + yaml)) {
             return Serialization.unmarshal(is, clazz);
         } catch (IOException ex) {
             throw new IllegalStateException("Cannot find yaml on classpath: " + yaml);
