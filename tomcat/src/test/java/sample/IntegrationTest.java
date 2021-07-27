@@ -26,7 +26,7 @@ import static org.junit.Assert.*;
 
 public class IntegrationTest {
     @Test
-    public void test() {
+    public void test() throws InterruptedException {
         Config config = new ConfigBuilder().withNamespace(null).build();
         KubernetesClient client = new DefaultKubernetesClient(config);
         Operator operator = new Operator(client, DefaultConfigurationService.instance());
@@ -41,10 +41,20 @@ public class IntegrationTest {
         MixedOperation<Tomcat, KubernetesResourceList<Tomcat>, Resource<Tomcat>> tomcatClient = client.customResources(Tomcat.class);
 
         Namespace tt_ns = new NamespaceBuilder().withMetadata(new ObjectMetaBuilder().withName("tomcat-test").build()).build();
+
+        client.namespaces().delete(tt_ns);
+
+        while (client.namespaces().withName("tomcat-test").get() != null) {
+            Thread.sleep(1000);
+        };
+
         client.namespaces().createOrReplace(tt_ns);
+
         tomcatClient.inNamespace("tomcat-test").create(tomcat);
 
         Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
+
+        Thread.sleep(1000);
 
         assertNotNull(updatedTomcat.getStatus());
     }
