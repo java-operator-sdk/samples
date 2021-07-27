@@ -44,6 +44,9 @@ public class IntegrationTest {
         client.namespaces().createOrReplace(tt_ns);
         tomcatClient.inNamespace("tomcat-test").create(tomcat);
 
+        Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
+
+        assertNotNull(updatedTomcat.getStatus());
     }
 
     private <T> T loadYaml(Class<T> clazz, String yaml) {
