@@ -52,10 +52,12 @@ public class IntegrationTest {
 
         tomcatClient.inNamespace("tomcat-test").create(tomcat);
 
+
+        Thread.sleep(3000);
+
         Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
 
-        Thread.sleep(1000);
-
+        System.out.println(updatedTomcat.toString());
         assertNotNull(updatedTomcat.getStatus());
     }
 
