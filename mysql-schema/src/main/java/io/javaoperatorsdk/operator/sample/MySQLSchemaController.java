@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Controller
-public class SchemaController implements ResourceController<Schema> {
+public class MySQLSchemaController implements ResourceController<MySQLSchema> {
   static final String USERNAME_FORMAT = "%s-user";
   static final String SECRET_FORMAT = "%s-secret";
 
@@ -30,12 +30,12 @@ public class SchemaController implements ResourceController<Schema> {
 
   private final KubernetesClient kubernetesClient;
 
-  public SchemaController(KubernetesClient kubernetesClient) {
+  public MySQLSchemaController(KubernetesClient kubernetesClient) {
     this.kubernetesClient = kubernetesClient;
   }
 
   @Override
-  public UpdateControl<Schema> createOrUpdateResource(Schema schema, Context<Schema> context) {
+  public UpdateControl<MySQLSchema> createOrUpdateResource(MySQLSchema schema, Context<MySQLSchema> context) {
     try (Connection connection = getConnection()) {
       if (!schemaExists(connection, schema.getMetadata().getName())) {
         try (Statement statement = connection.createStatement()) {
@@ -99,7 +99,7 @@ public class SchemaController implements ResourceController<Schema> {
   }
 
   @Override
-  public DeleteControl deleteResource(Schema schema, Context<Schema> context) {
+  public DeleteControl deleteResource(MySQLSchema schema, Context<MySQLSchema> context) {
     log.info("Execution deleteResource for: {}", schema.getMetadata().getName());
 
     try (Connection connection = getConnection()) {
