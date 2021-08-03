@@ -33,7 +33,8 @@ jobs:
         - name: Set up Java and Maven
           uses: actions/setup-java@v1
           with:
-            java-version: ${{ matrix.java }}
+            # java-version: ${{ matrix.java }}
+            java-version: 15
         - uses: actions/cache@v2
           with:
             path: ~/.m2/repository
