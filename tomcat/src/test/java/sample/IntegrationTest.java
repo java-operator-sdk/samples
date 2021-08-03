@@ -49,7 +49,7 @@ public class IntegrationTest {
 
         client.namespaces().delete(tt_ns);
 
-        await().atMost(60 , SECONDS).until(() -> client.namespaces().withName("tomcat-test").get() == null);
+        await().atMost(300, SECONDS).until(() -> client.namespaces().withName("tomcat-test").get() == null);
 
         client.namespaces().createOrReplace(tt_ns);
 
@@ -57,21 +57,8 @@ public class IntegrationTest {
 
         await().atMost(60, SECONDS).until(() -> {
             Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
-
-            System.out.println(updatedTomcat.toString());
-
-            return updatedTomcat.getStatus() != null && (int) updatedTomcat.getStatus().getReadyReplicas() == 2;
-
+            return updatedTomcat.getStatus() != null && (int) updatedTomcat.getStatus().getReadyReplicas() == 3;
         });
-
-
-//        Thread.sleep(3000);
-
-        Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
-
-        System.out.println(updatedTomcat.toString());
-        assertNotNull(updatedTomcat.getStatus());
-        assertEquals(2, (int) updatedTomcat.getStatus().getReadyReplicas());
     }
 
     private <T> T loadYaml(Class<T> clazz, String yaml) {
