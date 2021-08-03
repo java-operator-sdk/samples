@@ -22,6 +22,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.*;
 
 public class IntegrationTest {
@@ -38,27 +40,38 @@ public class IntegrationTest {
 
         Tomcat tomcat = loadYaml(Tomcat.class, "tomcat-sample1.yaml");
 
+        tomcat.getSpec().setReplicas(3);
+        tomcat.getMetadata().setNamespace("tomcat-test");
+
         MixedOperation<Tomcat, KubernetesResourceList<Tomcat>, Resource<Tomcat>> tomcatClient = client.customResources(Tomcat.class);
 
         Namespace tt_ns = new NamespaceBuilder().withMetadata(new ObjectMetaBuilder().withName("tomcat-test").build()).build();
 
         client.namespaces().delete(tt_ns);
 
-        while (client.namespaces().withName("tomcat-test").get() != null) {
-            Thread.sleep(1000);
-        };
+        await().atMost(60 , SECONDS).until(() -> client.namespaces().withName("tomcat-test").get() == null);
 
         client.namespaces().createOrReplace(tt_ns);
 
         tomcatClient.inNamespace("tomcat-test").create(tomcat);
 
+        await().atMost(60, SECONDS).until(() -> {
+            Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
 
-        Thread.sleep(3000);
+            System.out.println(updatedTomcat.toString());
+
+            return updatedTomcat.getStatus() != null && (int) updatedTomcat.getStatus().getReadyReplicas() == 2;
+
+        });
+
+
+//        Thread.sleep(3000);
 
         Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
 
         System.out.println(updatedTomcat.toString());
         assertNotNull(updatedTomcat.getStatus());
+        assertEquals(2, (int) updatedTomcat.getStatus().getReadyReplicas());
     }
 
     private <T> T loadYaml(Class<T> clazz, String yaml) {
