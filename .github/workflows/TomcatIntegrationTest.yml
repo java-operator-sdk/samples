@@ -5,21 +5,22 @@ on:
       - "*"
 jobs: 
     helm_chart_validation:
-      runs-on: ubuntu-latest
-      steps:
+       runs-on: ubuntu-latest
+        steps:
         - name: Checkout
           uses: actions/checkout@v2
-
+  
         - name: Set up Helm
           uses: azure/setup-helm@v1
           with:
             version: v3.4.0
-
-       - uses: actions/setup-python@v2
-         with:
-           python-version: 3.7
-
-       - name: Create kind cluster
-         uses: helm/kind-action@v1.2.0
-         with:
-           config: ./ci-config/kind.yaml
+  
+        - uses: actions/setup-python@v2
+          with:
+            python-version: 3.7
+            
+        - name: Create kind cluster
+          uses: helm/kind-action@v1.2.0
+          with:
+            config: ./ci-config/kind.yaml
+  
