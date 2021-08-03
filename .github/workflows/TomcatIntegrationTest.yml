@@ -36,9 +36,9 @@ jobs:
             java-version: ${{ matrix.java }}
         - uses: actions/cache@v2
           with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+            path: ~/.m2/repository
+            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+            restore-keys: |
+              ${{ runner.os }}-maven-
         - name: Run unit tests
           run: mvn -B test --file tomcat/pom.xml
