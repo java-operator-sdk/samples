@@ -24,3 +24,21 @@ jobs:
   
         - name: Check pods
           run: kubectl get pods -A
+        - uses: actions/cache@v2
+          with:
+            path: ~/.m2/repository
+            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+            restore-keys: |
+              ${{ runner.os }}-maven-
+        - name: Set up Java and Maven
+          uses: actions/setup-java@v1
+          with:
+            java-version: ${{ matrix.java }}
+        - uses: actions/cache@v2
+          with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+        - name: Run unit tests
+          run: mvn -B test --file tomcat/pom.xml
