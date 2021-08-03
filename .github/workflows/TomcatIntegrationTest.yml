@@ -22,3 +22,5 @@ jobs:
         - name: Create kind cluster
           uses: helm/kind-action@v1.2.0
   
+        - name: Check pods
+          run: kubectl get pods -A
