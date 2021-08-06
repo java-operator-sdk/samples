@@ -3,7 +3,14 @@ kind: CustomResourceDefinition
 metadata:
   name: mysqlschemas.mysql.sample.javaoperatorsdk
 spec:
+  names:
+    plural: mysqlschemas
+    singular: mysqlschema
+    shortNames:
+      - schema
+    kind: MySQLSchema
   group: mysql.sample.javaoperatorsdk
+  scope: Namespaced
   versions:
     - name: v1
       served: true
@@ -21,8 +28,3 @@ spec:
                properties:
                  encoding:
                    type: string
-  scope: Namespaced
-  names:
-    plural: mysqlschemas
-    singular: mysqlschema
-    kind: MySQLSchema
