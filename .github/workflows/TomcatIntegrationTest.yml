@@ -4,7 +4,7 @@ on:
       branches:
       - "*"
 jobs: 
-    helm_chart_validation:
+    tomcat_integration_test:
        runs-on: ubuntu-latest
        steps:
         - name: Checkout
@@ -22,14 +22,9 @@ jobs:
         - name: Create kind cluster
           uses: helm/kind-action@v1.2.0
   
-        - name: Check pods
-          run: kubectl get pods -A
-        - uses: actions/cache@v2
-          with:
-            path: ~/.m2/repository
-            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-            restore-keys: |
-              ${{ runner.os }}-maven-
+        - name: Apply CRDs
+          run: kubectl apply -f tomcat/k8s/crd.yaml
+
         - name: Set up Java and Maven
           uses: actions/setup-java@v1
           with:
