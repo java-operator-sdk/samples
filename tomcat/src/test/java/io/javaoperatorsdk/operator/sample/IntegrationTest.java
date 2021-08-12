@@ -1,4 +1,4 @@
-package sample;
+package io.javaoperatorsdk.operator.sample;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -38,7 +38,7 @@ public class IntegrationTest {
 
         operator.register(new WebappController(client));
 
-        Tomcat tomcat = loadYaml(Tomcat.class, "tomcat-sample1.yaml");
+        Tomcat tomcat = loadYaml(Tomcat.class, "k8s/tomcat-sample1.yaml");
 
         tomcat.getSpec().setReplicas(3);
         tomcat.getMetadata().setNamespace("tomcat-test");
@@ -48,6 +48,9 @@ public class IntegrationTest {
         Namespace testNs = new NamespaceBuilder().withMetadata(
                 new ObjectMetaBuilder().withName("tomcat-test").build()).build();
 
+        // We perform a pre-run cleanup instead of a post-run cleanup. This is to help with debugging test results
+        // when running against a persistent cluster. The test namespace would stay after the test run so we can
+        // check what's there, but it would be cleaned up during the next test run.
         client.namespaces().delete(testNs);
 
         await().atMost(300, SECONDS).until(() -> client.namespaces().withName("tomcat-test").get() == null);
@@ -63,7 +66,7 @@ public class IntegrationTest {
     }
 
     private <T> T loadYaml(Class<T> clazz, String yaml) {
-        try (InputStream is = new FileInputStream("k8s/" + yaml)) {
+        try (InputStream is = new FileInputStream(yaml)) {
             return Serialization.unmarshal(is, clazz);
         } catch (IOException ex) {
             throw new IllegalStateException("Cannot find yaml on classpath: " + yaml);
