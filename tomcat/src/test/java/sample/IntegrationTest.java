@@ -28,7 +28,7 @@ import static org.junit.Assert.*;
 
 public class IntegrationTest {
     @Test
-    public void test() throws InterruptedException {
+    public void test() {
         Config config = new ConfigBuilder().withNamespace(null).build();
         KubernetesClient client = new DefaultKubernetesClient(config);
         Operator operator = new Operator(client, DefaultConfigurationService.instance());
@@ -45,19 +45,20 @@ public class IntegrationTest {
 
         MixedOperation<Tomcat, KubernetesResourceList<Tomcat>, Resource<Tomcat>> tomcatClient = client.customResources(Tomcat.class);
 
-        Namespace tt_ns = new NamespaceBuilder().withMetadata(new ObjectMetaBuilder().withName("tomcat-test").build()).build();
+        Namespace testNs = new NamespaceBuilder().withMetadata(
+                new ObjectMetaBuilder().withName("tomcat-test").build()).build();
 
-        client.namespaces().delete(tt_ns);
+        client.namespaces().delete(testNs);
 
         await().atMost(300, SECONDS).until(() -> client.namespaces().withName("tomcat-test").get() == null);
 
-        client.namespaces().createOrReplace(tt_ns);
+        client.namespaces().createOrReplace(testNs);
 
         tomcatClient.inNamespace("tomcat-test").create(tomcat);
 
         await().atMost(60, SECONDS).until(() -> {
             Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
-            return updatedTomcat.getStatus() != null && (int) updatedTomcat.getStatus().getReadyReplicas() == 3;
+            return updatedTomcat.getStatus() != null && updatedTomcat.getStatus().getReadyReplicas() == 3;
         });
     }
 
