@@ -13,9 +13,6 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
-import io.javaoperatorsdk.operator.sample.Tomcat;
-import io.javaoperatorsdk.operator.sample.TomcatController;
-import io.javaoperatorsdk.operator.sample.WebappController;
 import org.junit.Test;
 
 import java.io.FileInputStream;
@@ -24,7 +21,6 @@ import java.io.InputStream;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.*;
 
 public class IntegrationTest {
     @Test
