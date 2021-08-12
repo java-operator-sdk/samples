@@ -28,13 +28,14 @@ jobs:
         - name: Set up Java and Maven
           uses: actions/setup-java@v1
           with:
-            # java-version: ${{ matrix.java }}
             java-version: 15
-        - uses: actions/cache@v2
+
+        - name: Cache Maven packages
+          uses: actions/cache@v2
           with:
-            path: ~/.m2/repository
-            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-            restore-keys: |
-              ${{ runner.os }}-maven-
+            path: ~/.m2
+            key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+            restore-keys: ${{ runner.os }}-m2
+
         - name: Run unit tests
           run: mvn -B test --file tomcat/pom.xml
