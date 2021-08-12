@@ -24,7 +24,7 @@ public class WebappController implements ResourceController<Webapp> {
 
   @Override
   public UpdateControl<Webapp> createOrUpdateResource(Webapp webapp, Context<Webapp> context) {
-    if (Objects.equals(webapp.getSpec().getUrl(), webapp.getStatus().getDeployedArtifact())) {
+    if (webapp.getStatus() != null && Objects.equals(webapp.getSpec().getUrl(), webapp.getStatus().getDeployedArtifact())) {
       return UpdateControl.noUpdate();
     }
 
@@ -32,7 +32,7 @@ public class WebappController implements ResourceController<Webapp> {
 
     executeCommandInAllPods(kubernetesClient, webapp, command);
 
-    webapp.getStatus().setDeployedArtifact(webapp.getSpec().getUrl());
+    //webapp.getStatus().setDeployedArtifact(webapp.getSpec().getUrl());
     return UpdateControl.updateStatusSubResource(webapp);
   }
 

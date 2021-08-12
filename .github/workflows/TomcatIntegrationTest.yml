@@ -1,0 +1,40 @@
+name: Tomcat integration test
+on:
+   push:
+      branches:
+      - "*"
+jobs: 
+    tomcat_integration_test:
+       runs-on: ubuntu-latest
+       steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+  
+        - name: Set up Helm
+          uses: azure/setup-helm@v1
+          with:
+            version: v3.4.0
+  
+        - uses: actions/setup-python@v2
+          with:
+            python-version: 3.7
+
+        - name: Create kind cluster
+          uses: helm/kind-action@v1.2.0
+  
+        - name: Apply CRDs
+          run: kubectl apply -f tomcat/k8s/crd.yaml
+
+        - name: Set up Java and Maven
+          uses: actions/setup-java@v1
+          with:
+            # java-version: ${{ matrix.java }}
+            java-version: 15
+        - uses: actions/cache@v2
+          with:
+            path: ~/.m2/repository
+            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+            restore-keys: |
+              ${{ runner.os }}-maven-
+        - name: Run unit tests
+          run: mvn -B test --file tomcat/pom.xml
