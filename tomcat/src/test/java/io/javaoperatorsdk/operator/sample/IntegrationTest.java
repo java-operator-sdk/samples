@@ -5,8 +5,6 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
 import org.junit.Test;
@@ -42,7 +40,7 @@ public class IntegrationTest {
         tomcat.getSpec().setReplicas(3);
         tomcat.getSpec().setVersion(9);
 
-        MixedOperation<Tomcat, KubernetesResourceList<Tomcat>, Resource<Tomcat>> tomcatClient = client.customResources(Tomcat.class);
+        var tomcatClient = client.customResources(Tomcat.class);
 
         Namespace testNs = new NamespaceBuilder().withMetadata(
                 new ObjectMetaBuilder().withName(TEST_NS).build()).build();
@@ -56,7 +54,7 @@ public class IntegrationTest {
 
         client.namespaces().createOrReplace(testNs);
 
-        tomcatClient.inNamespace("tomcat-test").create(tomcat);
+        tomcatClient.inNamespace(TEST_NS).create(tomcat);
 
         await().atMost(2, MINUTES).untilAsserted(() -> {
             Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
