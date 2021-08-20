@@ -22,7 +22,7 @@ jobs:
         - name: Create kind cluster
           uses: helm/kind-action@v1.2.0
           with:
-            cluster_name: ${{ job }}
+            cluster_name: tomcat-integration
   
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
