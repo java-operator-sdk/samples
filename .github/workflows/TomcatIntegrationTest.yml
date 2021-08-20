@@ -125,7 +125,6 @@ jobs:
             # Checking env variable
             if [[ "$KIND_REGISTRY" != "localhost:5000" ]]; then
               echo "Wrong KIND_REGISTRY env variable: $KIND_REGISTRY"
-              exit 1
             fi
             docker pull busybox
             docker tag busybox localhost:5000/localbusybox
