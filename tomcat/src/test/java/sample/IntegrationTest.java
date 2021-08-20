@@ -55,7 +55,7 @@ public class IntegrationTest {
 
         tomcatClient.inNamespace("tomcat-test").create(tomcat);
 
-        await().atMost(60, SECONDS).until(() -> {
+        await().atMost(120, SECONDS).until(() -> {
             Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
             return updatedTomcat.getStatus() != null && (int) updatedTomcat.getStatus().getReadyReplicas() == 3;
         });

@@ -28,7 +28,8 @@ spec:
       serviceAccountName: tomcat-operator
       containers:
       - name: operator
-        image: tomcat-operator
+        image: localhost:5000/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT
+        #image: tomcat-operator
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
@@ -65,8 +66,26 @@ metadata:
 rules:
 - apiGroups:
   - ""
+  - "extensions"
+  - "apps"
   resources:
   - deployments
   - services
+  - pods
+  verbs:
+  - '*'
+- apiGroups:
+  - "apiextensions.k8s.io"
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - '*'
+- apiGroups:
+  - "tomcatoperator.io"
+  resources:
+  - tomcats
+  - tomcats/status
+  - webapps
+  - webapps/status
   verbs:
   - '*'
