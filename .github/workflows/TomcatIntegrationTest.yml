@@ -92,9 +92,6 @@ jobs:
        #     registry: true
        #   # docker stop tomcat-local-apply-control-plane ; docker rm tomcat-local-apply-control-plane ; sleep 1
 
-        - name: Apply CRDs
-          run: kubectl apply -f tomcat/k8s/crd.yaml
-
         - name: Set up Java and Maven
           uses: actions/setup-java@v2
           with:
@@ -118,9 +115,12 @@ jobs:
             maven-version: 3.8.1
 
         - name: check that kube is empty
+          if: ${{ env.ACT }}
           run: kubectl get tomcats,webapps,po
 
+        
         - name: test local registry
+          if: ${{ env.ACT }}
           run: |
             # Checking env variable
             if [[ "$KIND_REGISTRY" != "localhost:5000" ]]; then
@@ -130,19 +130,16 @@ jobs:
         - name: build jib
           run: mvn -B install jib:dockerBuild jib:build -Djib.allowInsecureRegistries=true  -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
 
-        - name: build jib
-          run: docker images
+        - name: Apply CRDs
+          run: kubectl apply -f tomcat/k8s/crd.yaml
 
         - name: install tomcat operator
           run: kubectl apply -f tomcat/k8s/operator.yaml
 
-        - name: install sample operators
+        - name: create ns tomcatoperator-sample
           run: kubectl create ns tomcatoperator-sample
 
-        - name: install sample operators
-          run: for sample in $(ls tomcat/k8s/*sample*); do echo kubectl -n tomcatoperator-sample apply -f $sample; done 
-
-        - name: wait for sample operators
+        - name: wait for operators ready
           run: |
             LOOP=0 &&\
             while [[ $(kubectl get pods -n tomcat-operator -l app=tomcat-operator -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do \
@@ -154,9 +151,22 @@ jobs:
               sleep 5; \
             done
 
-        - name: check operators
-          run: kubectl get deploy,tomcats,webapps,po -n tomcatoperator-sample
+        - name: install sample operators
+          run: |
+            for sample in $(ls tomcat/k8s/*sample*); do 
+             kubectl -n tomcatoperator-sample apply -f $sample; 
+            done
 
 
-        - name: check operators
-          run: kubectl get deploy,tomcats,webapps,po -n tomcat-operator
+        - name: check pod correctly started
+          run: |
+            LOOP=0 &&\
+            while [[ $(kubectl get pods -n tomcatoperator-sample -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True True True True True True" ]]; do \
+              echo "waiting for pod" &&\
+              kubectl logs -n tomcat-operator -l app=tomcat-operator &&\
+              (( LOOP++ )) &&\
+              if [[ $LOOP -gt 10 ]]; then break; fi &&\
+              echo "loop number $LOOP" &&\
+              sleep 5; \
+            done
+          

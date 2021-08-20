@@ -73,6 +73,7 @@ rules:
   - deployments
   - services
   - pods
+  - pods/exec
   verbs:
   - '*'
 - apiGroups:
