@@ -111,7 +111,7 @@ jobs:
             restore-keys: |
               ${{ runner.os }}-maven-
 
-        - name: Set up Maven
+        - name: Set up Maven for local ACT
           uses: stCarolas/setup-maven@v4
           if: ${{ env.ACT }}
           with:
@@ -132,7 +132,7 @@ jobs:
             docker push localhost:5000/localbusybox
 
         - name: build jib
-          run: mvn install jib:dockerBuild jib:build -Djib.to.image=localhost:5000/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
+          run: mvn install jib:dockerBuild jib:build -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
 
         - name: build jib
           run: docker images
