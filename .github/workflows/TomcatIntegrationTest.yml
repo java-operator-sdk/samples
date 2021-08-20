@@ -126,12 +126,9 @@ jobs:
             if [[ "$KIND_REGISTRY" != "localhost:5000" ]]; then
               echo "Wrong KIND_REGISTRY env variable: $KIND_REGISTRY"
             fi
-            docker pull busybox
-            docker tag busybox localhost:5000/localbusybox
-            docker push localhost:5000/localbusybox
 
         - name: build jib
-          run: mvn install jib:dockerBuild jib:build -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
+          run: mvn -B install jib:dockerBuild jib:build -Djib.allowInsecureRegistries=true  -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
 
         - name: build jib
           run: docker images
