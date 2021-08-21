@@ -1,9 +1,9 @@
 package io.javaoperatorsdk.operator.sample;
 
 import io.fabric8.kubernetes.client.Watcher;
-import io.javaoperatorsdk.operator.processing.event.AbstractEvent;
+import io.javaoperatorsdk.operator.processing.event.DefaultEvent;
 
-public class TomcatEvent extends AbstractEvent {
+public class TomcatEvent extends DefaultEvent {
 
   private final Watcher.Action action;
   private final Tomcat tomcat;
