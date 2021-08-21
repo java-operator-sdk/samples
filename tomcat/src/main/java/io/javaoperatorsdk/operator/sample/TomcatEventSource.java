@@ -12,6 +12,9 @@ import java.util.Optional;
 import static io.javaoperatorsdk.operator.processing.KubernetesResourceUtils.getUID;
 import static io.javaoperatorsdk.operator.processing.KubernetesResourceUtils.getVersion;
 
+/**
+ * Used by the WebappController to watch changes on Tomcat objects
+ */
 public class TomcatEventSource extends AbstractEventSource implements Watcher<Tomcat> {
     private static final Logger log = LoggerFactory.getLogger(TomcatEventSource.class);
 
@@ -34,11 +37,7 @@ public class TomcatEventSource extends AbstractEventSource implements Watcher<To
 
     @Override
     public void eventReceived(Action action, Tomcat tomcat) {
-        log.info(
-                "Event received for action: {}, Tomcat: {} (rr={})",
-                action.name(),
-                tomcat.getMetadata().getName(),
-                tomcat.getStatus().getReadyReplicas());
+        log.info("Event received for action: {}, Tomcat: {}", action.name(), tomcat.getMetadata().getName());
 
         if (action == Action.ERROR) {
             log.warn(
