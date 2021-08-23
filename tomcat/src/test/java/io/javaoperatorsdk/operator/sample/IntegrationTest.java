@@ -94,7 +94,7 @@ public class IntegrationTest {
                         .withImage("curlimages/curl:7.78.0")
                         .withRestartPolicy("Never")
                         .build()).done();
-        await().atMost(2, MINUTES).untilAsserted(() -> {
+        await().atMost(5, MINUTES).untilAsserted(() -> {
             try {
                 String curlOutput = client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).getLog();
                 assertThat(curlOutput, equalTo("200"));
