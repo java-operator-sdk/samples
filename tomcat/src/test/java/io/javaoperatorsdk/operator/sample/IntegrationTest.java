@@ -74,8 +74,8 @@ public class IntegrationTest {
         tomcatClient.inNamespace(TEST_NS).create(tomcat);
         webappClient.inNamespace(TEST_NS).create(webapp1);
 
-        log.info("Waiting 2 minutes for Tomcat and Webapp CR statuses to be updated");
-        await().atMost(2, MINUTES).untilAsserted(() -> {
+        log.info("Waiting 5 minutes for Tomcat and Webapp CR statuses to be updated");
+        await().atMost(5, MINUTES).untilAsserted(() -> {
             Tomcat updatedTomcat = tomcatClient.inNamespace(TEST_NS).withName(tomcat.getMetadata().getName()).get();
             Webapp updatedWebapp = webappClient.inNamespace(TEST_NS).withName(webapp1.getMetadata().getName()).get();
             assertThat(updatedTomcat.getStatus(), is(notNullValue()));
@@ -85,7 +85,7 @@ public class IntegrationTest {
         });
 
         String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
-        log.info("Starting curl Pod and waiting 2 minutes for GET of {} to return 200", url);
+        log.info("Starting curl Pod and waiting 5 minutes for GET of {} to return 200", url);
         Pod curlPod = client.run().inNamespace(TEST_NS)
                 .withRunConfig(new RunConfigBuilder()
                         .withArgs("-s", "-o", "/dev/null", "-w", "%{http_code}", url)
@@ -93,7 +93,7 @@ public class IntegrationTest {
                         .withImage("curlimages/curl:7.78.0")
                         .withRestartPolicy("Never")
                         .build()).done();
-        await().atMost(2, MINUTES).untilAsserted(() -> {
+        await().atMost(5, MINUTES).untilAsserted(() -> {
             try {
                 String curlOutput = client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).getLog();
                 assertThat(curlOutput, equalTo("200"));
