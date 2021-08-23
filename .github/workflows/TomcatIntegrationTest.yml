@@ -165,7 +165,7 @@ jobs:
               echo "waiting for pod" &&\
               kubectl logs -n tomcat-operator -l app=tomcat-operator &&\
               (( LOOP++ )) &&\
-              if [[ $LOOP -gt 10 ]]; then break; fi &&\
+              if [[ $LOOP -gt 10 ]]; then exit 1; fi &&\
               echo "loop number $LOOP" &&\
               sleep 5; \
             done
