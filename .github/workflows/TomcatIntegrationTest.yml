@@ -9,15 +9,6 @@ jobs:
        steps:
         - name: Checkout
           uses: actions/checkout@v2
-  
-        - name: Set up Helm
-          uses: azure/setup-helm@v1
-          with:
-            version: v3.4.0
-  
-        - uses: actions/setup-python@v2
-          with:
-            python-version: 3.7
 
         - name: Create kind cluster
           uses: helm/kind-action@v1.2.0
@@ -30,7 +21,6 @@ jobs:
         - name: Set up Java and Maven
           uses: actions/setup-java@v2
           with:
-            # java-version: ${{ matrix.java }}
             java-version: 15
             distribution: adopt-hotspot
 
@@ -41,7 +31,7 @@ jobs:
             path: ~/.m2/repository
             key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
             restore-keys: |
-              ${{ runner.os }}-maven-
+              ${{ runner.os }}-maven-m2
 
         - name: Set up Maven
           uses: stCarolas/setup-maven@v4
@@ -66,10 +56,6 @@ jobs:
           uses: azure/setup-helm@v1
           with:
             version: v3.4.0
-  
-        - uses: actions/setup-python@v2
-          with:
-            python-version: 3.7
 
         - name: test
           if: ${{ env.ACT }}
@@ -128,7 +114,10 @@ jobs:
             fi
 
         - name: build jib
-          run: mvn -B install jib:dockerBuild jib:build -Djib.allowInsecureRegistries=true  -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
+          run: |
+            mvn -B install jib:dockerBuild jib:build -Djib.allowInsecureRegistries=true  \
+                   -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT \
+                   --file tomcat/pom.xml -DskipTests
 
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
