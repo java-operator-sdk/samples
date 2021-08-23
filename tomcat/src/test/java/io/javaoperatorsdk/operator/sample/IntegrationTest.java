@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,5 +103,9 @@ public class IntegrationTest {
             }
         });
 
+        webappClient.inNamespace(TEST_NS).delete(webapp1);
+        tomcatClient.inNamespace(TEST_NS).delete(tomcat);
+        client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).delete();
     }
+
 }
