@@ -46,12 +46,6 @@ jobs:
         - name: Run unit tests
           run: mvn -B test -q --file tomcat/pom.xml
 
-        - name: Get webapps
-          #if: ${{ failure() }}
-          run: |
-            kubectl get tomcats,webapps -A -o yaml | tee -a debug
-            kubectl -n tomcat-test -c tomcat logs -l app=test-tomcat1 | grep startup
-
     tomcat_local_apply_setup_test:
        runs-on: ubuntu-latest
        steps:
@@ -189,7 +183,7 @@ jobs:
           #if: ${{ failure() }}
           run: |
             kubectl get tomcats,webapps -A -o yaml | tee -a debug
-            kubectl -n tomcat-test -c tomcat logs -l app=test-tomcat1 | grep startup 
+            kubectl -n tomcatoperator-sample -c tomcat logs -l app=test-tomcat1 | grep startup 
         
         - name: check code
           run: |
