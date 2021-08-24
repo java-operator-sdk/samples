@@ -86,12 +86,12 @@ public class IntegrationTest {
             assertThat(updatedWebapp.getStatus().getDeployedArtifact(), is(notNullValue()));
         });
 
-        log.info("Waiting 5 seconds for Tomcat to unpack the downloaded war");
+        log.info("Waiting 60 seconds for Tomcat to unpack the downloaded war");
         // this delays is du to allows the tomcat to unpack
         // kubectl -n tomcat-test -c war-downloader logs -l app=test-tomcat1
         // Deployment of web application archive [/usr/local/tomcat/webapps/webapp1.war] has finished in [xxx] ms
         try {
-            Thread.sleep(5*1000);
+            Thread.sleep(60*1000);
         } catch (InterruptedException e) {
             log.warn(e.getMessage(),e);
         }
