@@ -28,9 +28,7 @@ spec:
       serviceAccountName: tomcat-operator
       containers:
       - name: operator
-        #image: localhost:5000/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT
-        image: kind-registry:5000/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT
-        #image: tomcat-operator
+        image: tomcat-operator
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
