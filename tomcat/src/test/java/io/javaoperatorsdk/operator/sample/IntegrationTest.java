@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -84,7 +85,17 @@ public class IntegrationTest {
             assertThat(updatedWebapp.getStatus(), is(notNullValue()));
             assertThat(updatedWebapp.getStatus().getDeployedArtifact(), is(notNullValue()));
         });
-        
+
+        log.info("Waiting 5 seconds for Tomcat to unpack the downloaded war");
+        // this delays is du to allows the tomcat to unpack
+        // kubectl -n tomcat-test -c war-downloader logs -l app=test-tomcat1
+        // Deployment of web application archive [/usr/local/tomcat/webapps/webapp1.war] has finished in [xxx] ms
+        try {
+            Thread.sleep(5*1000);
+        } catch (InterruptedException e) {
+            log.warn(e.getMessage(),e);
+        }
+
         String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
         log.info("Starting curl Pod and waiting 2 minutes for GET of {} to return 200", url);
         Pod curlPod = client.run().inNamespace(TEST_NS)

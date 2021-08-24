@@ -46,6 +46,12 @@ jobs:
         - name: Run unit tests
           run: mvn -B test -q --file tomcat/pom.xml
 
+        - name: Get webapps
+          if: ${{ failure() }}
+          run: |
+            kubectl get tomcats,webapps -A -o yaml | tee -a debug
+            kubectl logs 
+
     tomcat_local_apply_setup_test:
        runs-on: ubuntu-latest
        steps:
@@ -63,20 +69,22 @@ jobs:
             mkdir -p /etc/docker
             echo -n "{\"exec-opts\": [\"native.cgroupdriver=systemd\"],\"log-driver\": \"json-file\",\"log-opts\": {\"max-size\": \"100m\"},\"storage-driver\": \"overlay2\"}" > /etc/docker/daemon.json
             cat /etc/docker/daemon.json
-            sudo service docker status
+            #sudo service docker status
 
         - name: Create Kubernetes KinD Cluster
           uses: container-tools/kind-action@v1.5.0
+          if: ${{ !env.ACT }}
           with:
             cluster_name: tomcat-local-apply
             registry: true
             
-       # - name: Create kind cluster
-       #   uses: helm/kind-action@v1.2.0
-       #   with:
-       #     cluster_name: tomcat-local-apply #${{ job.name }}
-       #     registry: true
-       #   # docker stop tomcat-local-apply-control-plane ; docker rm tomcat-local-apply-control-plane ; sleep 1
+        - name: Create kind cluster without registry
+          uses: helm/kind-action@v1.2.0
+          if: ${{ env.ACT }}
+          with:
+            cluster_name: tomcat-local-apply #${{ job.name }}
+            registry: false       
+          # for DIMG in "tomcat-local-apply-control-plane kind-registry tomcat_local_apply_setup_test "; do docker stop $DIMG ; docker rm $DIMG ; done ; sleep 1
 
         - name: Set up Java and Maven
           uses: actions/setup-java@v2
@@ -99,11 +107,6 @@ jobs:
           if: ${{ env.ACT }}
           with:
             maven-version: 3.8.1
-
-        - name: check that kube is empty
-          if: ${{ env.ACT }}
-          run: kubectl get tomcats,webapps,po
-
         
         - name: test local registry
           if: ${{ env.ACT }}
@@ -114,19 +117,41 @@ jobs:
             fi
 
         - name: build jib
+          if: ${{ !env.ACT }}
           run: |
             mvn -B install jib:dockerBuild jib:build -Djib.allowInsecureRegistries=true  \
                    -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT \
                    --file tomcat/pom.xml -DskipTests
 
+        - name: build jib
+          if: ${{ env.ACT }}
+          run: |
+              mvn -B install jib:dockerBuild \
+                    -Djib.to.image=sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
+              kind load docker-image sample:1.7.1-SNAPSHOT --name=tomcat-local-apply
+
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
 
         - name: install tomcat operator
-          run: kubectl apply -f tomcat/k8s/operator.yaml
+          if: ${{ !env.ACT }}
+          run: |
+            sed 's@image\: tomcat-operator@image\: kind-registry\:5000/io.javaoperatorsdk/sample\:1.7.1-SNAPSHOT@g'  tomcat/k8s/operator.yaml > tomcat/target/operator.yaml
+            kubectl apply -f tomcat/target/operator.yaml
+
+        - name: install tomcat operator
+          if: ${{ env.ACT }}
+          run: |
+            sed 's@image\: tomcat-operator@image\: sample\:1.7.1-SNAPSHOT@g'  tomcat/k8s/operator.yaml > tomcat/target/operator.yaml
+            kubectl apply -f tomcat/target/operator.yaml
 
         - name: create ns tomcatoperator-sample
           run: kubectl create ns tomcatoperator-sample
+
+        - name: debug local kind
+          if: ${{ env.ACT }}
+          run: |
+            kubectl get pods -n tomcat-operator -l app=tomcat-operator -o yaml | tee -a debug.log
 
         - name: wait for operators ready
           run: |
@@ -135,7 +160,7 @@ jobs:
               echo "waiting for pod" &&\
               kubectl logs -n tomcat-operator -l app=tomcat-operator &&\
               (( LOOP++ )) &&\
-              if [[ $LOOP -gt 10 ]]; then break; fi &&\
+              if [[ $LOOP -gt 10 ]]; then exit 1; fi &&\
               echo "loop number $LOOP" &&\
               sleep 5; \
             done
@@ -145,7 +170,6 @@ jobs:
             for sample in $(ls tomcat/k8s/*sample*); do 
              kubectl -n tomcatoperator-sample apply -f $sample; 
             done
-
 
         - name: check pod correctly started
           run: |
@@ -158,4 +182,5 @@ jobs:
               echo "loop number $LOOP" &&\
               sleep 5; \
             done
-          
+
+        
