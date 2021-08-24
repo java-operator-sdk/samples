@@ -80,6 +80,10 @@ spec:
               properties:
                 deployedArtifact:
                   type: string
+                deploymentStatus:
+                  type: array
+                  items:
+                    type: string
           required: [spec]
   # either Namespaced or Cluster
   scope: Namespaced

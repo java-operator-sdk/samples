@@ -59,7 +59,7 @@ public class IntegrationTest {
         Namespace testNs = new NamespaceBuilder().withMetadata(
                 new ObjectMetaBuilder().withName(TEST_NS).build()).build();
 
-        if (testNs != null) {
+        if (testNs != null && client.namespaces().withName(TEST_NS).isReady() == true ) {
             // We perform a pre-run cleanup instead of a post-run cleanup. This is to help with debugging test results
             // when running against a persistent cluster. The test namespace would stay after the test run so we can
             // check what's there, but it would be cleaned up during the next test run.
@@ -84,7 +84,7 @@ public class IntegrationTest {
             assertThat(updatedWebapp.getStatus(), is(notNullValue()));
             assertThat(updatedWebapp.getStatus().getDeployedArtifact(), is(notNullValue()));
         });
-
+        
         String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
         log.info("Starting curl Pod and waiting 2 minutes for GET of {} to return 200", url);
         Pod curlPod = client.run().inNamespace(TEST_NS)
@@ -94,18 +94,15 @@ public class IntegrationTest {
                         .withImage("curlimages/curl:7.78.0")
                         .withRestartPolicy("Never")
                         .build()).done();
-        await().atMost(5, MINUTES).untilAsserted(() -> {
+        await().atMost(2, MINUTES).untilAsserted(() -> {
             try {
+                //let's do som tries
                 String curlOutput = client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).getLog();
                 assertThat(curlOutput, equalTo("200"));
             } catch (KubernetesClientException ex) {
                 throw new AssertionError(ex);
             }
         });
-
-        webappClient.inNamespace(TEST_NS).delete(webapp1);
-        tomcatClient.inNamespace(TEST_NS).delete(tomcat);
-        client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).delete();
     }
 
 }
