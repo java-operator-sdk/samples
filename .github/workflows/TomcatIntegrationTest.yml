@@ -32,6 +32,7 @@ jobs:
           run: mvn -B test --file tomcat/pom.xml
 
         - name: Dump state
+          if: ${{ failure() }}
           run: |
             kubectl get all -n tomcat-test -o yaml
             kubectl logs curl
