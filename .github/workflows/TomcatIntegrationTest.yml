@@ -48,36 +48,18 @@ jobs:
 
     tomcat_local_apply_setup_test:
        runs-on: ubuntu-latest
+       env:
+         KIND_CL_NAME: tomcat-local-apply
        steps:
         - name: Checkout
           uses: actions/checkout@v2
-  
-        - name: Set up Helm
-          uses: azure/setup-helm@v1
-          with:
-            version: v3.4.0
-
-        - name: test
-          if: ${{ env.ACT }}
-          run: |
-            mkdir -p /etc/docker
-            echo -n "{\"exec-opts\": [\"native.cgroupdriver=systemd\"],\"log-driver\": \"json-file\",\"log-opts\": {\"max-size\": \"100m\"},\"storage-driver\": \"overlay2\"}" > /etc/docker/daemon.json
-            cat /etc/docker/daemon.json
-            #sudo service docker status
 
         - name: Create Kubernetes KinD Cluster
           uses: container-tools/kind-action@v1.5.0
-          if: ${{ !env.ACT }}
           with:
             cluster_name: tomcat-local-apply
-            registry: true
-            
-        - name: Create kind cluster without registry
-          uses: helm/kind-action@v1.2.0
-          if: ${{ env.ACT }}
-          with:
-            cluster_name: tomcat-local-apply #${{ job.name }}
-            registry: false       
+            registry: false
+
           # for DIMG in "tomcat-local-apply-control-plane kind-registry tomcat_local_apply_setup_test "; do docker stop $DIMG ; docker rm $DIMG ; done ; sleep 1
 
         - name: Set up Java and Maven
@@ -101,43 +83,18 @@ jobs:
           if: ${{ env.ACT }}
           with:
             maven-version: 3.8.1
-        
-        - name: test local registry
-          if: ${{ env.ACT }}
-          run: |
-            # Checking env variable
-            if [[ "$KIND_REGISTRY" != "localhost:5000" ]]; then
-              echo "Wrong KIND_REGISTRY env variable: $KIND_REGISTRY"
-            fi
 
         - name: build jib
-          if: ${{ !env.ACT }}
           run: |
-            mvn -B install jib:dockerBuild jib:build -Djib.allowInsecureRegistries=true  \
-                   -Djib.to.image=$KIND_REGISTRY/io.javaoperatorsdk/sample:1.7.1-SNAPSHOT \
-                   --file tomcat/pom.xml -DskipTests
-
-        - name: build jib
-          if: ${{ env.ACT }}
-          run: |
-              mvn -B install jib:dockerBuild \
-                    -Djib.to.image=sample:1.7.1-SNAPSHOT --file tomcat/pom.xml -DskipTests
-              kind load docker-image sample:1.7.1-SNAPSHOT --name=tomcat-local-apply
+            mvn -B package jib:dockerBuild jib:buildTar -Djib-maven-image=tomcat-operator --file tomcat/pom.xml -DskipTests
+            kind load image-archive tomcat/target/jib-image.tar --name=${{ env.KIND_CL_NAME }}
 
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
 
         - name: install tomcat operator
-          if: ${{ !env.ACT }}
           run: |
-            sed 's@image\: tomcat-operator@image\: kind-registry\:5000/io.javaoperatorsdk/sample\:1.7.1-SNAPSHOT@g'  tomcat/k8s/operator.yaml > tomcat/target/operator.yaml
-            kubectl apply -f tomcat/target/operator.yaml
-
-        - name: install tomcat operator
-          if: ${{ env.ACT }}
-          run: |
-            sed 's@image\: tomcat-operator@image\: sample\:1.7.1-SNAPSHOT@g'  tomcat/k8s/operator.yaml > tomcat/target/operator.yaml
-            kubectl apply -f tomcat/target/operator.yaml
+            kubectl apply -f tomcat/k8s/operator.yaml
 
         - name: create ns tomcatoperator-sample
           run: kubectl create ns tomcatoperator-sample
@@ -171,16 +128,16 @@ jobs:
             while [[ $(kubectl get pods -n tomcatoperator-sample -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True True True True True True" ]]; do \
               echo "waiting for pod" &&\
               kubectl logs -n tomcat-operator -l app=tomcat-operator &&\
+              kubectl get pods -n tomcatoperator-sample &&\
               (( LOOP++ )) &&\
               if [[ $LOOP -gt 10 ]]; then exit 1; fi &&\
               echo "loop number $LOOP" &&\
-              sleep 5; \
+              sleep 10; \
             done
             #Waiting 5 seconds for Tomcat to unpack the downloaded war
             sleep 5;
 
         - name: Get webapps
-          #if: ${{ failure() }}
           run: |
             kubectl get tomcats,webapps -A -o yaml | tee -a debug
             kubectl -n tomcatoperator-sample -c tomcat logs -l app=test-tomcat1 | grep startup 
