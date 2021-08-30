@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ""
+  labels:
+    app.kubernetes.io/part-of: ""
+    app.kubernetes.io/managed-by: "" # used for filtering of Deployments created by the controller
+  ownerReferences: # used for finding which Tomcat does this Deployment belong to
+    - apiVersion: apps/v1
+      kind: Tomcat
+      name: ""
+      uid: ""
+data:
+  CHECKSHA256: "false"
+  wgetscript.sh: |
+    #!/bin/sh
+    #
+    #
+    #
+    if [[ ! -f /etc/war-list/war-list.txt ]]; then
+        echo "war-list.txt is empty";
+        exit;
+    fi
+    
+    for WAR in $(cat /etc/war-list/war-list.txt); do
+        CONTEXT=$(echo $WAR | cut -d '=' -f 1)
+        URL=$(echo ${WAR#"$CONTEXT="})
+        wget -O /data/$CONTEXT.war $URL
+        # todo add a sha256 validation
+        # if [[ CHECKSHA256 -eq "true" ]]
+        # wget -O /data/$CONTEXT.war.sha256 $URL.sha256
+        #
+    done
+
+  # the format is contextPath=url
+  war-list.txt: ""
+

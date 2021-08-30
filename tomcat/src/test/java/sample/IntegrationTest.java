@@ -1,71 +1,126 @@
-package sample;
+package io.javaoperatorsdk.operator.sample;
 
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
-import io.javaoperatorsdk.operator.sample.Tomcat;
-import io.javaoperatorsdk.operator.sample.TomcatController;
-import io.javaoperatorsdk.operator.sample.WebappController;
+import org.junit.AfterClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class IntegrationTest {
+
+    final static String TEST_NS = "tomcat-test";
+
+    final static Logger log = LoggerFactory.getLogger(IntegrationTest.class);
+
     @Test
-    public void test() throws InterruptedException {
+    public void test() {
+        int replicas = 3; //3
         Config config = new ConfigBuilder().withNamespace(null).build();
         KubernetesClient client = new DefaultKubernetesClient(config);
+
         Operator operator = new Operator(client, DefaultConfigurationService.instance());
-
-        TomcatController tomcatController = new TomcatController(client);
-        operator.register(tomcatController);
-
+        operator.register(new TomcatController(client));
         operator.register(new WebappController(client));
 
-        Tomcat tomcat = loadYaml(Tomcat.class, "tomcat-sample1.yaml");
+        Tomcat tomcat = new Tomcat();
+        tomcat.setMetadata(new ObjectMetaBuilder()
+                .withName("test-tomcat1")
+                .withNamespace(TEST_NS)
+                .build());
+        tomcat.setSpec(new TomcatSpec());
+        tomcat.getSpec().setReplicas(replicas);
+        tomcat.getSpec().setVersion(9);
 
-        tomcat.getSpec().setReplicas(3);
-        tomcat.getMetadata().setNamespace("tomcat-test");
+        Webapp webapp1 = new Webapp();
+        webapp1.setMetadata(new ObjectMetaBuilder()
+                .withName("test-webapp1")
+                .withNamespace(TEST_NS)
+                .build());
+        webapp1.setSpec(new WebappSpec());
+        webapp1.getSpec().setContextPath("webapp1");
+        webapp1.getSpec().setTomcat(tomcat.getMetadata().getName());
+        webapp1.getSpec().setUrl("http://tomcat.apache.org/tomcat-7.0-doc/appdev/sample/sample.war");
 
-        MixedOperation<Tomcat, KubernetesResourceList<Tomcat>, Resource<Tomcat>> tomcatClient = client.customResources(Tomcat.class);
+        var tomcatClient = client.customResources(Tomcat.class);
+        var webappClient = client.customResources(Webapp.class);
 
-        Namespace tt_ns = new NamespaceBuilder().withMetadata(new ObjectMetaBuilder().withName("tomcat-test").build()).build();
+        Namespace testNs = new NamespaceBuilder().withMetadata(
+                new ObjectMetaBuilder().withName(TEST_NS).build()).build();
 
-        client.namespaces().delete(tt_ns);
+        if (testNs != null && client.namespaces().withName(TEST_NS).isReady() == true ) {
+            // We perform a pre-run cleanup instead of a post-run cleanup. This is to help with debugging test results
+            // when running against a persistent cluster. The test namespace would stay after the test run so we can
+            // check what's there, but it would be cleaned up during the next test run.
+            log.info("Cleanup: deleting test namespace {}", TEST_NS);
+            client.namespaces().delete(testNs);
+            await().atMost(5, MINUTES).until(() -> client.namespaces().withName("tomcat-test").get() == null);
+        }
 
-        await().atMost(300, SECONDS).until(() -> client.namespaces().withName("tomcat-test").get() == null);
+        log.info("Creating test namespace {}", TEST_NS);
+        client.namespaces().create(testNs);
 
-        client.namespaces().createOrReplace(tt_ns);
+        log.info("Creating test resources");
+        tomcatClient.inNamespace(TEST_NS).create(tomcat);
 
-        tomcatClient.inNamespace("tomcat-test").create(tomcat);
+        log.info("Waiting 2 minutes for Tomcat CR statuses to be updated");
+        await().atMost(2, MINUTES).untilAsserted(() -> {
+            Tomcat updatedTomcat = tomcatClient.inNamespace(TEST_NS).withName(tomcat.getMetadata().getName()).get();
+            assertThat(updatedTomcat.getStatus(), is(notNullValue()));
+            //assertThat(updatedTomcat.getStatus().getReadyReplicas(), equalTo(3));
+        });
 
-        await().atMost(60, SECONDS).until(() -> {
-            Tomcat updatedTomcat = tomcatClient.inNamespace("tomcat-test").withName("test-tomcat1").get();
-            return updatedTomcat.getStatus() != null && (int) updatedTomcat.getStatus().getReadyReplicas() == 3;
+        webappClient.inNamespace(TEST_NS).create(webapp1);
+        log.info("Waiting 2 minutes for  Webapp CR statuses to be updated");
+        await().atMost(2, MINUTES).untilAsserted(() -> {
+            Webapp updatedWebapp = webappClient.inNamespace(TEST_NS).withName(webapp1.getMetadata().getName()).get();
+            assertThat(updatedWebapp.getStatus(), is(notNullValue()));
+            assertThat(updatedWebapp.getStatus().getDeployedArtifact(), is(notNullValue()));
+            Tomcat updatedTomcat = tomcatClient.inNamespace(TEST_NS).withName(tomcat.getMetadata().getName()).get();
+            assertThat(updatedTomcat.getStatus(), is(notNullValue()));
+            assertThat(updatedTomcat.getStatus().getReadyReplicas(), equalTo(replicas));
+        });
+        log.info("Waiting 60 seconds for Tomcat to unpack the downloaded war");
+        // this delays is du to allows the tomcat to unpack
+        // kubectl -n tomcat-test -c war-downloader logs -l app=test-tomcat1
+        // Deployment of web application archive [/usr/local/tomcat/webapps/webapp1.war] has finished in [xxx] ms
+        try {
+            Thread.sleep(60*1000);
+        } catch (InterruptedException e) {
+            log.warn(e.getMessage(),e);
+        }
+
+        String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
+        log.info("Starting curl Pod and waiting 2 minutes for GET of {} to return 200", url);
+        Pod curlPod = client.run().inNamespace(TEST_NS)
+                .withRunConfig(new RunConfigBuilder()
+                        .withArgs("-s", "-o", "/dev/null", "-w", "%{http_code}", url)
+                        .withName("curl")
+                        .withImage("curlimages/curl:7.78.0")
+                        .withRestartPolicy("Never")
+                        .build()).done();
+        await().atMost(2, MINUTES).untilAsserted(() -> {
+            try {
+                //let's do som tries
+                String curlOutput = client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).getLog();
+                assertThat(curlOutput, equalTo("200"));
+            } catch (KubernetesClientException ex) {
+                throw new AssertionError(ex);
+            }
         });
     }
 
-    private <T> T loadYaml(Class<T> clazz, String yaml) {
-        try (InputStream is = new FileInputStream("k8s/" + yaml)) {
-            return Serialization.unmarshal(is, clazz);
-        } catch (IOException ex) {
-            throw new IllegalStateException("Cannot find yaml on classpath: " + yaml);
-        }
-    }
 }
