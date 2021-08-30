@@ -99,7 +99,7 @@ public class IntegrationTest {
                                 .withRestartPolicy("Never")
                                 .build()).done();
                 log.info("Waiting for curl Pod to finish running");
-                await().atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get().getStatus().getPhase().equals("Succeeded"));
+                await("wait-for-curl-pod-run").atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get().getStatus().getPhase().equals("Succeeded"));
 
                 String curlOutput = client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).getLog();
                 log.info("Output from curl: '{}'", curlOutput);
@@ -109,7 +109,7 @@ public class IntegrationTest {
             } finally {
                 client.pods().inNamespace(TEST_NS).withName("curl").delete();
                 log.info("Waiting for curl Pod to be deleted");
-                await().atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get() == null);
+                await("wait-for-curl-pod-stop").atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get() == null);
             }
         });
 
