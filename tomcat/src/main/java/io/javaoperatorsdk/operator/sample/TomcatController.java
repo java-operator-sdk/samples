@@ -1,7 +1,6 @@
 package io.javaoperatorsdk.operator.sample;
 
-import io.fabric8.kubernetes.api.model.OwnerReference;
-import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -9,6 +8,7 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.ServiceResource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.api.*;
+import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import org.slf4j.Logger;
@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ListIterator;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -73,7 +74,7 @@ public class TomcatController implements ResourceController<Tomcat> {
   private Tomcat updateTomcatStatus(Tomcat tomcat, Deployment deployment) {
     DeploymentStatus deploymentStatus =
         Objects.requireNonNullElse(deployment.getStatus(), new DeploymentStatus());
-    int readyReplicas = Objects.requireNonNullElse(deploymentStatus.getReadyReplicas(), 0);
+    int readyReplicas = Objects.requireNonNullElse(deploymentStatus.getUpdatedReplicas(), 0);
     TomcatStatus status = new TomcatStatus();
     status.setReadyReplicas(readyReplicas);
     tomcat.setStatus(status);
@@ -82,6 +83,27 @@ public class TomcatController implements ResourceController<Tomcat> {
 
   private void createOrUpdateDeployment(Tomcat tomcat) {
     String ns = tomcat.getMetadata().getNamespace();
+
+    ConfigMap configMap = kubernetesClient
+            .configMaps().inNamespace(ns).withName(tomcat.getMetadata().getName()).get();
+
+    if(configMap == null){
+      // create it
+      configMap = loadYaml(ConfigMap.class, "configmap.yaml");
+        configMap.getMetadata().setName(tomcat.getMetadata().getName());
+        configMap.getMetadata().setNamespace(ns);
+        configMap.getMetadata().getLabels().put("app.kubernetes.io/part-of", tomcat.getMetadata().getName());
+        configMap.getMetadata().getLabels().put("app.kubernetes.io/managed-by", "tomcat-operator");
+      //
+      // I wonder if that's ok that this is resource is created by TomcatController and updated by webapps
+      OwnerReference ownerReference = configMap.getMetadata().getOwnerReferences().get(0);
+      ownerReference.setName(tomcat.getMetadata().getName());
+      ownerReference.setUid(tomcat.getMetadata().getUid());
+
+      log.info("Creating Init configmap {} in {}", configMap.getMetadata().getName(), ns);
+      kubernetesClient.configMaps().inNamespace(ns).create(configMap);
+    }
+
     Deployment existingDeployment =
         kubernetesClient
             .apps()
@@ -96,14 +118,6 @@ public class TomcatController implements ResourceController<Tomcat> {
       deployment.getMetadata().getLabels().put("app.kubernetes.io/part-of", tomcat.getMetadata().getName());
       deployment.getMetadata().getLabels().put("app.kubernetes.io/managed-by", "tomcat-operator");
       // set tomcat version
-      deployment
-          .getSpec()
-          .getTemplate()
-          .getSpec()
-          .getContainers()
-          .get(0)
-          .setImage("tomcat:" + tomcat.getSpec().getVersion());
-      deployment.getSpec().setReplicas(tomcat.getSpec().getReplicas());
 
       // make sure label selector matches label (which has to be matched by service selector too)
       deployment
@@ -121,20 +135,36 @@ public class TomcatController implements ResourceController<Tomcat> {
       OwnerReference ownerReference = deployment.getMetadata().getOwnerReferences().get(0);
       ownerReference.setName(tomcat.getMetadata().getName());
       ownerReference.setUid(tomcat.getMetadata().getUid());
-
+      setTomcatDeploymentReplicats(tomcat, ns, deployment, configMap);
       log.info("Creating or updating Deployment {} in {}", deployment.getMetadata().getName(), ns);
       kubernetesClient.apps().deployments().inNamespace(ns).create(deployment);
     } else {
-      existingDeployment
-          .getSpec()
-          .getTemplate()
-          .getSpec()
-          .getContainers()
-          .get(0)
-          .setImage("tomcat:" + tomcat.getSpec().getVersion());
-      existingDeployment.getSpec().setReplicas(tomcat.getSpec().getReplicas());
-      kubernetesClient.apps().deployments().inNamespace(ns).createOrReplace(existingDeployment);
+      setTomcatDeploymentReplicats(tomcat, ns, existingDeployment, configMap);
     }
+  }
+
+  private void setTomcatDeploymentReplicats(Tomcat tomcat, String ns, Deployment existingDeployment, ConfigMap conf) {
+    ListIterator<Volume> volumeListIterator = existingDeployment
+            .getSpec()
+            .getTemplate()
+            .getSpec().getVolumes().listIterator();
+
+    while (volumeListIterator.hasNext()){
+      Volume volume = volumeListIterator.next();
+      if (volume.getName().equals("webapps-war-list")) {
+        volume.getConfigMap().setName(conf.getMetadata().getName());
+      }
+    }
+
+    existingDeployment
+        .getSpec()
+        .getTemplate()
+        .getSpec()
+        .getContainers()
+        .get(0)
+        .setImage("tomcat:" + tomcat.getSpec().getVersion());
+    existingDeployment.getSpec().setReplicas(tomcat.getSpec().getReplicas());
+    kubernetesClient.apps().deployments().inNamespace(ns).createOrReplace(existingDeployment);
   }
 
   private void deleteDeployment(Tomcat tomcat) {

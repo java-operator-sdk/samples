@@ -80,6 +80,14 @@ spec:
               properties:
                 deployedArtifact:
                   type: string
+                contextPath:
+                  type: string
+                ready:
+                    type: string
+                message:
+                    type: string
+                updateTimestamp:
+                    type: string
           required: [spec]
   # either Namespaced or Cluster
   scope: Namespaced
