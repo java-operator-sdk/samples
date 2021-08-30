@@ -11,7 +11,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.*;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -86,19 +86,30 @@ public class IntegrationTest {
 
         String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
         log.info("Starting curl Pod and waiting 5 minutes for GET of {} to return 200", url);
-        Pod curlPod = client.run().inNamespace(TEST_NS)
-                .withRunConfig(new RunConfigBuilder()
-                        .withArgs("-s", "-o", "/dev/null", "-w", "%{http_code}", url)
-                        .withName("curl")
-                        .withImage("curlimages/curl:7.78.0")
-                        .withRestartPolicy("Never")
-                        .build()).done();
-        await().atMost(5, MINUTES).untilAsserted(() -> {
+
+        int timeoutMinutes = 5;
+        await().atMost(timeoutMinutes, MINUTES).untilAsserted(() -> {
             try {
+                log.info("Starting curl Pod to test if webapp was deployed correctly");
+                Pod curlPod = client.run().inNamespace(TEST_NS)
+                        .withRunConfig(new RunConfigBuilder()
+                                .withArgs("-s", "-o", "/dev/null", "-w", "%{http_code}", url)
+                                .withName("curl")
+                                .withImage("curlimages/curl:7.78.0")
+                                .withRestartPolicy("Never")
+                                .build()).done();
+                log.info("Waiting for curl Pod to finish running");
+                await().atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get().getStatus().getPhase().equals("Succeeded"));
+
                 String curlOutput = client.pods().inNamespace(TEST_NS).withName(curlPod.getMetadata().getName()).getLog();
+                log.info("Output from curl: '{}'", curlOutput);
                 assertThat(curlOutput, equalTo("200"));
             } catch (KubernetesClientException ex) {
                 throw new AssertionError(ex);
+            } finally {
+                client.pods().inNamespace(TEST_NS).withName("curl").delete();
+                log.info("Waiting for curl Pod to be deleted");
+                await().atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get() == null);
             }
         });
 
