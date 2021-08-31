@@ -6,14 +6,25 @@ on:
 jobs: 
     tomcat_integration_test:
        runs-on: ubuntu-latest
+       env:
+         KIND_CL_NAME: tomcat-integration
        steps:
         - name: Checkout
           uses: actions/checkout@v2
 
+        - name: clean resident local docker
+          if: ${{ env.ACT }}
+          continue-on-error: true
+          run: |
+            for DIMG in "$KIND_CL_NAME-control-plane "; do
+              docker stop $DIMG ; docker rm $DIMG ;
+            done ;
+            sleep 1
+
         - name: Create kind cluster
           uses: helm/kind-action@v1.2.0
           with:
-            cluster_name: tomcat-integration
+            cluster_name: ${{ env.KIND_CL_NAME }}
   
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
@@ -44,7 +55,7 @@ jobs:
           run: mvn --version
 
         - name: Run unit tests
-          run: mvn -B test -q --file tomcat/pom.xml
+          run: mvn -B failsafe:integration-test --file tomcat/pom.xml
 
     tomcat_local_apply_setup_test:
        runs-on: ubuntu-latest
@@ -54,10 +65,19 @@ jobs:
         - name: Checkout
           uses: actions/checkout@v2
 
+        - name: clean resident local docker
+          if: ${{ env.ACT }}
+          continue-on-error: true
+          run: |
+            for DIMG in "$KIND_CL_NAME-control-plane "; do
+              docker stop $DIMG ; docker rm $DIMG ;
+            done ;
+            sleep 1
+
         - name: Create Kubernetes KinD Cluster
           uses: container-tools/kind-action@v1.5.0
           with:
-            cluster_name: tomcat-local-apply
+            cluster_name: ${{ env.KIND_CL_NAME }}
             registry: false
 
           # for DIMG in "tomcat-local-apply-control-plane kind-registry tomcat_local_apply_setup_test "; do docker stop $DIMG ; docker rm $DIMG ; done ; sleep 1

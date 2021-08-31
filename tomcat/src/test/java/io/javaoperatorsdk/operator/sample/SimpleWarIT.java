@@ -7,24 +7,25 @@ import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
-import org.junit.AfterClass;
+import io.javaoperatorsdk.operator.test.IntegrationTest;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 
-public class IntegrationTest {
+@Category(IntegrationTest.class)
+public class SimpleWarIT {
 
     final static String TEST_NS = "tomcat-test";
 
-    final static Logger log = LoggerFactory.getLogger(IntegrationTest.class);
+    final static Logger log = LoggerFactory.getLogger(SimpleWarIT.class);
 
     @Test
     public void test() {
