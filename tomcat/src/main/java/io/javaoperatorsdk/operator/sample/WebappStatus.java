@@ -11,4 +11,14 @@ public class WebappStatus {
   public void setDeployedArtifact(String deployedArtifact) {
     this.deployedArtifact = deployedArtifact;
   }
+
+  private String[] deploymentStatus;
+
+  public String[] getDeploymentStatus() {
+    return deploymentStatus;
+  }
+
+  public void setDeploymentStatus(String[] deploymentStatus) {
+    this.deploymentStatus = deploymentStatus;
+  }
 }

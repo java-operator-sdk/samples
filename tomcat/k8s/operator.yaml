@@ -65,8 +65,27 @@ metadata:
 rules:
 - apiGroups:
   - ""
+  - "extensions"
+  - "apps"
   resources:
   - deployments
   - services
+  - pods
+  - pods/exec
+  verbs:
+  - '*'
+- apiGroups:
+  - "apiextensions.k8s.io"
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - '*'
+- apiGroups:
+  - "tomcatoperator.io"
+  resources:
+  - tomcats
+  - tomcats/status
+  - webapps
+  - webapps/status
   verbs:
   - '*'

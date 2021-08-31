@@ -19,6 +19,10 @@ import java.io.InputStream;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Runs a specified number of Tomcat app server Pods. It uses a Deployment to create the Pods. Also creates a
+ * Service over which the Pods can be accessed.
+ */
 @Controller
 public class TomcatController implements ResourceController<Tomcat> {
 
