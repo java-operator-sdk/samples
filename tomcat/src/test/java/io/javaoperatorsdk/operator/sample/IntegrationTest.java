@@ -100,7 +100,7 @@ public class IntegrationTest {
         log.info("Starting curl Pod and waiting 5 minutes for GET of {} to return 200", url);
 
         int timeoutMinutes = 5;
-        await().atMost(timeoutMinutes, MINUTES).untilAsserted(() -> {
+        await("wait-for-webapp").atMost(timeoutMinutes, MINUTES).untilAsserted(() -> {
             try {
 
                 log.info("Starting curl Pod to test if webapp was deployed correctly");
