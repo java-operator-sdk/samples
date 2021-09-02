@@ -31,9 +31,11 @@ public class IntegrationTest {
         Config config = new ConfigBuilder().withNamespace(null).build();
         KubernetesClient client = new DefaultKubernetesClient(config);
 
-        Operator operator = new Operator(client, DefaultConfigurationService.instance());
-        operator.register(new TomcatController(client));
-        operator.register(new WebappController(client));
+        if ("true".equals(System.getenv("RUN_OPERATOR_IN_TEST"))) {
+            Operator operator = new Operator(client, DefaultConfigurationService.instance());
+            operator.register(new TomcatController(client));
+            operator.register(new WebappController(client));
+        }
 
         Tomcat tomcat = new Tomcat();
         tomcat.setMetadata(new ObjectMetaBuilder()
