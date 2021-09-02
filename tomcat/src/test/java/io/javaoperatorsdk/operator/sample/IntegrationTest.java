@@ -7,9 +7,11 @@ import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import static java.util.concurrent.TimeUnit.*;
 import static org.awaitility.Awaitility.await;
@@ -58,7 +60,7 @@ public class IntegrationTest {
         Namespace testNs = new NamespaceBuilder().withMetadata(
                 new ObjectMetaBuilder().withName(TEST_NS).build()).build();
 
-        if (testNs != null) {
+        if (testNs != null && client.namespaces().withName(TEST_NS).isReady() == true ) {
             // We perform a pre-run cleanup instead of a post-run cleanup. This is to help with debugging test results
             // when running against a persistent cluster. The test namespace would stay after the test run so we can
             // check what's there, but it would be cleaned up during the next test run.
@@ -84,12 +86,23 @@ public class IntegrationTest {
             assertThat(updatedWebapp.getStatus().getDeployedArtifact(), is(notNullValue()));
         });
 
+        log.info("Waiting 60 seconds for Tomcat to unpack the downloaded war");
+        // this delays is du to allows the tomcat to unpack
+        // kubectl -n tomcat-test -c war-downloader logs -l app=test-tomcat1
+        // Deployment of web application archive [/usr/local/tomcat/webapps/webapp1.war] has finished in [xxx] ms
+        try {
+            Thread.sleep(60*1000);
+        } catch (InterruptedException e) {
+            log.warn(e.getMessage(),e);
+        }
+
         String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
         log.info("Starting curl Pod and waiting 5 minutes for GET of {} to return 200", url);
 
         int timeoutMinutes = 5;
         await().atMost(timeoutMinutes, MINUTES).untilAsserted(() -> {
             try {
+
                 log.info("Starting curl Pod to test if webapp was deployed correctly");
                 Pod curlPod = client.run().inNamespace(TEST_NS)
                         .withRunConfig(new RunConfigBuilder()
@@ -112,6 +125,6 @@ public class IntegrationTest {
                 await("wait-for-curl-pod-stop").atMost(timeoutMinutes, MINUTES).until(() -> client.pods().inNamespace(TEST_NS).withName("curl").get() == null);
             }
         });
-
     }
+
 }

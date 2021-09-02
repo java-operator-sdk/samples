@@ -5,4 +5,4 @@ metadata:
 spec:
   tomcat: test-tomcat2
   url: charlottemach.com/assets/jax.war
-  contextPath: mysample
+  contextPath: othercontext

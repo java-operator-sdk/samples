@@ -12,27 +12,148 @@ jobs:
 
         - name: Create kind cluster
           uses: helm/kind-action@v1.2.0
+          with:
+            cluster_name: tomcat-integration
   
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
 
         - name: Set up Java and Maven
-          uses: actions/setup-java@v1
+          uses: actions/setup-java@v2
           with:
             java-version: 15
+            distribution: adopt-hotspot
 
-        - name: Cache Maven packages
+        - name: cache
           uses: actions/cache@v2
+          if: ${{ !env.ACT }}
           with:
-            path: ~/.m2
-            key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-            restore-keys: ${{ runner.os }}-m2
+            path: ~/.m2/repository
+            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+            restore-keys: |
+              ${{ runner.os }}-maven-m2
+
+        - name: Set up Maven
+          uses: stCarolas/setup-maven@v4
+          if: ${{ env.ACT }}
+          with:
+            maven-version: 3.8.1
 
         - name: Run unit tests
-          run: mvn -B test --file tomcat/pom.xml
+          if: ${{ env.ACT }}
+          run: mvn --version
 
-        - name: Dump state
-          if: ${{ failure() }}
+        - name: Run unit tests
+          run: mvn -B test -q --file tomcat/pom.xml
+
+    tomcat_local_apply_setup_test:
+       runs-on: ubuntu-latest
+       env:
+         KIND_CL_NAME: tomcat-local-apply
+       steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+
+        - name: Create Kubernetes KinD Cluster
+          uses: container-tools/kind-action@v1.5.0
+          with:
+            cluster_name: tomcat-local-apply
+            registry: false
+
+          # for DIMG in "tomcat-local-apply-control-plane kind-registry tomcat_local_apply_setup_test "; do docker stop $DIMG ; docker rm $DIMG ; done ; sleep 1
+
+        - name: Set up Java and Maven
+          uses: actions/setup-java@v2
+          with:
+            # java-version: ${{ matrix.java }}
+            java-version: 15
+            distribution: adopt-hotspot
+
+        - name: cache
+          uses: actions/cache@v2
+          if: ${{ !env.ACT }}
+          with:
+            path: ~/.m2/repository
+            key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+            restore-keys: |
+              ${{ runner.os }}-maven-
+
+        - name: Set up Maven for local ACT
+          uses: stCarolas/setup-maven@v4
+          if: ${{ env.ACT }}
+          with:
+            maven-version: 3.8.1
+
+        - name: build jib
           run: |
-            kubectl get all -n tomcat-test -o yaml
-            kubectl logs curl
+            mvn -B package jib:dockerBuild jib:buildTar -Djib-maven-image=tomcat-operator --file tomcat/pom.xml -DskipTests
+            kind load image-archive tomcat/target/jib-image.tar --name=${{ env.KIND_CL_NAME }}
+
+        - name: Apply CRDs
+          run: kubectl apply -f tomcat/k8s/crd.yaml
+
+        - name: install tomcat operator
+          run: |
+            kubectl apply -f tomcat/k8s/operator.yaml
+
+        - name: create ns tomcatoperator-sample
+          run: kubectl create ns tomcatoperator-sample
+
+        - name: debug local kind
+          if: ${{ env.ACT }}
+          run: |
+            kubectl get pods -n tomcat-operator -l app=tomcat-operator -o yaml | tee -a debug.log
+
+        - name: wait for operators ready
+          run: |
+            LOOP=0 &&\
+            while [[ $(kubectl get pods -n tomcat-operator -l app=tomcat-operator -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do \
+              echo "waiting for pod" &&\
+              kubectl logs -n tomcat-operator -l app=tomcat-operator &&\
+              (( LOOP++ )) &&\
+              if [[ $LOOP -gt 10 ]]; then exit 1; fi &&\
+              echo "loop number $LOOP" &&\
+              sleep 5; \
+            done
+
+        - name: install sample operators
+          run: |
+            for sample in $(ls tomcat/k8s/*sample*); do 
+             kubectl -n tomcatoperator-sample apply -f $sample; 
+            done
+
+        - name: check pod correctly started
+          run: |
+            LOOP=0 &&\
+            while [[ $(kubectl get pods -n tomcatoperator-sample -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True True True True True True" ]]; do \
+              echo "waiting for pod" &&\
+              kubectl logs -n tomcat-operator -l app=tomcat-operator &&\
+              kubectl get pods -n tomcatoperator-sample &&\
+              (( LOOP++ )) &&\
+              if [[ $LOOP -gt 10 ]]; then exit 1; fi &&\
+              echo "loop number $LOOP" &&\
+              sleep 10; \
+            done
+            #Waiting 5 seconds for Tomcat to unpack the downloaded war
+            sleep 5;
+
+        - name: Get webapps
+          run: |
+            kubectl get tomcats,webapps -A -o yaml | tee -a debug
+            kubectl -n tomcatoperator-sample -c tomcat logs -l app=test-tomcat1 | grep startup 
+        
+        - name: check code
+          run: |
+              kubectl -n tomcatoperator-sample run sample1 --labels=app=curl --image=curlimages/curl:7.78.0   --restart=Never --timeout=30s --command -- curl -s -v http://test-tomcat1/mysample/;
+              kubectl -n tomcatoperator-sample run sample2 --labels=app=curl --image=curlimages/curl:7.78.0   --restart=Never --timeout=30s --command -- curl -s -v http://test-tomcat2/othercontext/;
+              LOOP=0 &&\
+              while [[ $(kubectl get pods -n tomcatoperator-sample -l app=curl -o 'jsonpath={..status.phase}') != "Succeeded Succeeded" ]]; do \
+                echo "waiting for pod" &&\
+                kubectl logs -n tomcatoperator-sample -l app=curl &&\
+                (( LOOP++ )) &&\
+                if [[ $LOOP -gt 5 ]]; then exit 1; fi &&\
+                echo "loop number $LOOP" &&\
+                sleep 5; \
+              done
+              if [[ $(kubectl logs -n tomcatoperator-sample sample1 --tail=500 | grep tomcat.gif | wc -l) -ne 1 ]]; then exit 1; fi
+              if [[ $(kubectl logs -n tomcatoperator-sample sample2 --tail=500 | grep dog.jpeg | wc -l) -ne 1 ]]; then exit 1; fi
