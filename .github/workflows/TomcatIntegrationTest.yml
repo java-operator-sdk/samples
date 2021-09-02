@@ -6,14 +6,26 @@ on:
 jobs: 
     tomcat_integration_test:
        runs-on: ubuntu-latest
+       env:
+        KIND_CL_NAME: tomcat-integration-test
        steps:
         - name: Checkout
           uses: actions/checkout@v2
 
-        - name: Create kind cluster
-          uses: helm/kind-action@v1.2.0
+        - name: clean resident local docker
+          if: ${{ env.ACT }}
+          continue-on-error: true
+          run: |
+            for DIMG in "$KIND_CL_NAME-control-plane "; do
+              docker stop $DIMG ; docker rm $DIMG ;
+            done ;
+            sleep 1
+
+        - name: Create Kubernetes KinD Cluster
+          uses: container-tools/kind-action@v1.5.0
           with:
-            cluster_name: tomcat-integration
+            cluster_name: tomcat-integration-test
+            registry: false
   
         - name: Apply CRDs
           run: kubectl apply -f tomcat/k8s/crd.yaml
@@ -39,12 +51,30 @@ jobs:
           with:
             maven-version: 3.8.1
 
-        - name: Run unit tests
-          if: ${{ env.ACT }}
-          run: mvn --version
+        - name: build jib
+          run: |
+            mvn --version
+            mvn -B package jib:dockerBuild jib:buildTar -Djib-maven-image=tomcat-operator --file tomcat/pom.xml -DskipTests
+            kind load image-archive tomcat/target/jib-image.tar --name=${{ env.KIND_CL_NAME }}
+
+        - name: Apply CRDs
+          run: kubectl apply -f tomcat/k8s/crd.yaml
+
+        - name: install tomcat operator
+          run: |
+            kubectl apply -f tomcat/k8s/operator.yaml
+
+        - name: create ns tomcatoperator-sample
+          run: kubectl create ns tomcatoperator-sample
 
         - name: Run unit tests
           run: mvn -B test -q --file tomcat/pom.xml
+
+        - name: Dump state
+          if: ${{ failure() }}
+          run: |
+            kubectl get all -n tomcat-test -o yaml
+            kubectl logs curl
 
     tomcat_local_apply_setup_test:
        runs-on: ubuntu-latest
@@ -53,6 +83,15 @@ jobs:
        steps:
         - name: Checkout
           uses: actions/checkout@v2
+
+        - name: clean resident local docker
+          if: ${{ env.ACT }}
+          continue-on-error: true
+          run: |
+            for DIMG in "$KIND_CL_NAME-control-plane "; do
+              docker stop $DIMG ; docker rm $DIMG ;
+            done ;
+            sleep 1
 
         - name: Create Kubernetes KinD Cluster
           uses: container-tools/kind-action@v1.5.0
