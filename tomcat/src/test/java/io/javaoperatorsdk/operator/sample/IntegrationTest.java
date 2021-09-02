@@ -62,7 +62,7 @@ public class IntegrationTest {
         Namespace testNs = new NamespaceBuilder().withMetadata(
                 new ObjectMetaBuilder().withName(TEST_NS).build()).build();
 
-        if (testNs != null && client.namespaces().withName(TEST_NS).isReady() == true ) {
+        if (testNs != null && client.namespaces().withName(TEST_NS).isReady()) {
             // We perform a pre-run cleanup instead of a post-run cleanup. This is to help with debugging test results
             // when running against a persistent cluster. The test namespace would stay after the test run so we can
             // check what's there, but it would be cleaned up during the next test run.
@@ -87,16 +87,6 @@ public class IntegrationTest {
             assertThat(updatedWebapp.getStatus(), is(notNullValue()));
             assertThat(updatedWebapp.getStatus().getDeployedArtifact(), is(notNullValue()));
         });
-
-        log.info("Waiting 60 seconds for Tomcat to unpack the downloaded war");
-        // this delays is du to allows the tomcat to unpack
-        // kubectl -n tomcat-test -c war-downloader logs -l app=test-tomcat1
-        // Deployment of web application archive [/usr/local/tomcat/webapps/webapp1.war] has finished in [xxx] ms
-        try {
-            Thread.sleep(60*1000);
-        } catch (InterruptedException e) {
-            log.warn(e.getMessage(),e);
-        }
 
         String url = "http://" + tomcat.getMetadata().getName() + "/" + webapp1.getSpec().getContextPath() + "/";
         log.info("Starting curl Pod and waiting 5 minutes for GET of {} to return 200", url);
