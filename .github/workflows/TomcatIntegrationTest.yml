@@ -76,4 +76,4 @@ jobs:
           if: ${{ failure() }}
           run: |
             kubectl get all -n tomcat-test -o yaml
-            kubectl logs curl
+            kubectl logs curl -n tomcat-test
