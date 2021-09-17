@@ -72,5 +72,27 @@ rules:
   - deployments
   - services
   - configmaps
+  - pods
+  verbs:
+  - '*'
+- apiGroups:
+  - "apps"
+  resources:
+  - deployments
+  - services
+  - configmaps
+  verbs:
+  - '*'
+- apiGroups:
+  - "apiextensions.k8s.io"
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - '*'
+- apiGroups:
+  - "sample.javaoperatorsdk"
+  resources:
+  - webservers
+  - webservers/status
   verbs:
   - '*'

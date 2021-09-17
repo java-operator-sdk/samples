@@ -11,6 +11,10 @@ import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Used by the TomcatController to watch changes on Deployment objects. As the Pods of the Deployment start up
+ * the TomcatController updates the status.readyReplicas field.
+ */
 public class DeploymentEventSource extends AbstractEventSource implements Watcher<Deployment> {
   private static final Logger log = LoggerFactory.getLogger(DeploymentEventSource.class);
 
