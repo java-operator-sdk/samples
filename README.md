@@ -1,5 +1,7 @@
 # Java Operator SDK Samples
 
+# !!! WARNING This repo is obsolete, the samples are moved back to [main repository](https://github.com/java-operator-sdk/java-operator-sdk/tree/main/sample-operators)
+
 There are multiple sample Operators in this repository. Some more basic examples can be found in the [SDK itself, under the samples directory](https://github.com/java-operator-sdk/java-operator-sdk/samples/).
 
 * [webserver](webserver/README.md): Simple example creating an NGINX webserver from a Custom Resource containing HTML code.
